@@ -1,7 +1,7 @@
 <template>
   <nav class="navbar navbar-expand-lg navbar-dark gs-navbar">
     <div class="container">
-      <router-link class="navbar-brand" to="/">GuideSync</router-link>
+      <router-link class="navbar-brand" :to="brandTarget">GuideSync</router-link>
 
       <button
         class="navbar-toggler"
@@ -58,12 +58,17 @@
 
 <script>
 import { useAuthStore } from '../stores/auth'
+import { roleHome } from '../router'
 
 export default {
   name: 'NavBar',
   computed: {
     auth() {
       return useAuthStore()
+    },
+    // Logo goes to the landing page when logged out, dashboard when logged in.
+    brandTarget() {
+      return this.auth.isLoggedIn ? roleHome(this.auth.role) : '/'
     },
   },
   methods: {

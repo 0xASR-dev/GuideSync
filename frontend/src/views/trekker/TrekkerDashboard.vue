@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <!-- Booked treks with status, inline -->
+    
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h5 class="section-title mb-0">My Booked Treks</h5>
       <router-link to="/trekker/bookings" class="btn btn-sm btn-outline-success">View all</router-link>

@@ -8,10 +8,7 @@ from celery_app import celery
 from models import Trek, Booking, User
 
 
-# ==========================================================================
-# EMAIL HELPER  (delivers to Mailhog on localhost:1025)
-# Mailhog is a dev SMTP catcher; view captured mail at http://localhost:8025
-# ==========================================================================
+
 def send_email(to_address, subject, html_body, attachment=None):
     msg = EmailMessage()
     msg['From'] = current_app.config['MAIL_SENDER']
@@ -31,11 +28,7 @@ def send_email(to_address, subject, html_body, attachment=None):
         smtp.send_message(msg)
 
 
-# ==========================================================================
-# 1) DAILY REMINDER  (scheduled by Celery Beat)
-# For every trek starting within the next 3 days, remind each booked user.
-# Here we just print the message (an email/webhook would go in the same spot).
-# ==========================================================================
+
 @celery.task
 def send_daily_reminders():
     today = date.today()
@@ -65,17 +58,27 @@ def send_daily_reminders():
     return f'Sent {sent} reminders'
 
 
-# ==========================================================================
-# 2) MONTHLY ADMIN REPORT  (scheduled by Celery Beat, 1st of month)
-# Builds a small HTML summary of last month and "emails" it to the admin.
-# ==========================================================================
+
 @celery.task
 def generate_monthly_report():
     completed = Trek.query.filter_by(status='Completed', is_deleted=False).count()
     total_bookings = Booking.query.count()
     total_trekkers = User.query.filter_by(role='trekker', is_deleted=False).count()
 
-    # most popular treks by number of bookings
+    # new signups during the PREVIOUS calendar month (report runs on the 1st)
+    today = date.today()
+    first_this_month = datetime(today.year, today.month, 1)
+    if today.month == 1:
+        first_prev_month = datetime(today.year - 1, 12, 1)
+    else:
+        first_prev_month = datetime(today.year, today.month - 1, 1)
+    new_signups = User.query.filter(
+        User.role == 'trekker',
+        User.created_at >= first_prev_month,
+        User.created_at < first_this_month,
+    ).count()
+
+    #most popular treks
     treks = Trek.query.filter_by(is_deleted=False).all()
     popularity = []
     for t in treks:
@@ -89,6 +92,7 @@ def generate_monthly_report():
     <p>Completed treks: {completed}</p>
     <p>Total bookings: {total_bookings}</p>
     <p>Total trekkers: {total_trekkers}</p>
+    <p>New signups last month: {new_signups}</p>
     <h3>Top treks</h3>
     <ul>{rows or '<li>No bookings yet</li>'}</ul>
     """
@@ -99,10 +103,7 @@ def generate_monthly_report():
     return 'Monthly report generated'
 
 
-# ==========================================================================
-# 3) USER CSV EXPORT  (triggered by the trekker from the UI)
-# Writes the user's booking history to exports/<task_id>.csv
-# ==========================================================================
+
 @celery.task(bind=True)
 def export_bookings_csv(self, user_id):
     folder = current_app.config['EXPORT_FOLDER']
@@ -132,9 +133,7 @@ def export_bookings_csv(self, user_id):
                 _d(trek.end_date) if trek else '',
             ])
 
-    # Also email the CSV to the trekker via Mailhog.
-    # Kept non-fatal: if Mailhog isn't running the file is still on disk
-    # and remains downloadable from the UI.
+
     user = User.query.get(user_id)
     if user:
         try:

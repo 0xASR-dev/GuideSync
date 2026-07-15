@@ -3,10 +3,7 @@ from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 
-# ---------------------------------------------------------------------------
-# Date/time helpers (time-series parsing + serialization)
-# Accepts the HTML datetime-local mask "%Y-%m-%dT%H:%M" and plain dates.
-# ---------------------------------------------------------------------------
+
 def parse_dt(value):
     if not value:
         return None
@@ -27,9 +24,7 @@ def fmt_dt(value):
     return value or ''
 
 
-# ---------------------------------------------------------------------------
-# USER  (one table for all 3 roles: admin / staff / trekker)
-# ---------------------------------------------------------------------------
+
 class User(db.Model):
     __tablename__ = 'users'
 
@@ -39,13 +34,10 @@ class User(db.Model):
     full_name = db.Column(db.String(120), nullable=False)
     phone = db.Column(db.String(20))
     role = db.Column(db.String(20), nullable=False, default='trekker')  # admin/staff/trekker
-    is_active = db.Column(db.Boolean, default=True)        # deactivate flag
     is_blacklisted = db.Column(db.Boolean, default=False)  # blacklist flag
     is_deleted = db.Column(db.Boolean, default=False)      # soft-delete flag
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Relationships with cascading delete-orphan.
-    # Deleting a User removes their bookings and staff profile automatically.
     bookings = db.relationship(
         'Booking', backref='trekker',
         foreign_keys='Booking.user_id',
@@ -57,9 +49,8 @@ class User(db.Model):
     )
 
 
-# ---------------------------------------------------------------------------
-# STAFF PROFILE  (extra info, 1 row per staff user)
-# ---------------------------------------------------------------------------
+
+
 class StaffProfile(db.Model):
     __tablename__ = 'staff_profiles'
 
@@ -70,10 +61,7 @@ class StaffProfile(db.Model):
     status = db.Column(db.String(20), default='active')  # active/on_leave/inactive
 
 
-# ---------------------------------------------------------------------------
-# TREK
-# Trek lifecycle status: Pending -> Approved -> Open -> Closed -> Completed
-# ---------------------------------------------------------------------------
+
 class Trek(db.Model):
     __tablename__ = 'treks'
 
@@ -101,10 +89,7 @@ class Trek(db.Model):
     )
 
 
-# ---------------------------------------------------------------------------
-# BOOKING
-# Booking lifecycle status: Booked -> (Cancelled | Completed)
-# ---------------------------------------------------------------------------
+
 class Booking(db.Model):
     __tablename__ = 'bookings'
 
@@ -117,10 +102,7 @@ class Booking(db.Model):
     notes = db.Column(db.Text)
 
 
-# ---------------------------------------------------------------------------
-# Seed the single admin account (runs at startup).
-# There is NO admin registration route -> admin is created here only.
-# ---------------------------------------------------------------------------
+
 def create_admin():
     admin = User.query.filter_by(role='admin').first()
     if not admin:

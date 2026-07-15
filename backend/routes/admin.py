@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash
@@ -9,11 +10,7 @@ from routes import cache_service
 admin_bp = Blueprint('admin', __name__)
 
 
-# ==========================================================================
-# DASHBOARD
-# Global (same for every admin) -> @cache.cached() decorator.
-# Invalidated on writes via cache.delete(KEY_ADMIN_DASHBOARD).
-# ==========================================================================
+
 @admin_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -28,9 +25,8 @@ def dashboard():
     return jsonify(data), 200
 
 
-# ==========================================================================
-# TREK CRUD
-# ==========================================================================
+# Trek CRUD --------------------------------
+
 @admin_bp.route('/treks', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -73,9 +69,9 @@ def create_trek():
         difficulty=data.get('difficulty', 'Easy'),
         duration_days=int(data.get('duration_days', 1)),
         total_slots=total,
-        available_slots=total,               # start full
+        available_slots=total,               
         price=float(data.get('price', 0)),
-        status='Approved',                   # not bookable until staff assigned
+        status='Approved',                   
         start_date=parse_dt(data.get('start_date')),
         end_date=parse_dt(data.get('end_date')),
         created_by_admin_id=get_jwt_identity(),
@@ -106,7 +102,7 @@ def update_trek(trek_id):
     if 'end_date' in data:
         trek.end_date = parse_dt(data['end_date'])
 
-    # if admin changes total slots, adjust available slots by the same difference
+    
     if 'total_slots' in data:
         new_total = int(data['total_slots'])
         booked = trek.total_slots - trek.available_slots
@@ -125,16 +121,13 @@ def delete_trek(trek_id):
     trek = Trek.query.filter_by(id=trek_id, is_deleted=False).first()
     if not trek:
         return jsonify({'message': 'Trek not found'}), 404
-    # Soft delete: keep the row (and its bookings) for historical analytics,
-    # just hide it from active listings. The cascade relationship is still
-    # configured so a real db.session.delete(trek) would clean up bookings.
     trek.is_deleted = True
     db.session.commit()
     cache_service.clear_all_trek_caches()
     return jsonify({'message': 'Trek deleted'}), 200
 
 
-# Assign staff to a trek -> trek becomes 'Open' (now visible/bookable)
+# Assign staff to a trek - trek becomes -Open and visible/bookable
 @admin_bp.route('/treks/<int:trek_id>/assign-staff', methods=['POST'])
 @jwt_required()
 @role_required('admin')
@@ -155,9 +148,8 @@ def assign_staff(trek_id):
     return jsonify({'message': 'Staff assigned, trek is now Open'}), 200
 
 
-# ==========================================================================
-# STAFF ACCOUNTS
-# ==========================================================================
+
+# Staff Acc-----------------------
 @admin_bp.route('/staff', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -171,7 +163,6 @@ def list_staff():
             'full_name': u.full_name,
             'email': u.email,
             'phone': u.phone,
-            'is_active': u.is_active,
             'is_blacklisted': u.is_blacklisted,
             'bio': profile.bio if profile else '',
         })
@@ -210,9 +201,7 @@ def create_staff():
     return jsonify({'message': 'Staff created', 'staff_id': user.id}), 201
 
 
-# ==========================================================================
-# USERS  (list + deactivate + blacklist)
-# ==========================================================================
+# USERS  (list + blacklist + delete)
 @admin_bp.route('/users', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -223,22 +212,9 @@ def list_users():
         'full_name': u.full_name,
         'email': u.email,
         'phone': u.phone,
-        'is_active': u.is_active,
         'is_blacklisted': u.is_blacklisted,
     } for u in users]
     return jsonify({'users': result}), 200
-
-
-@admin_bp.route('/users/<int:user_id>/deactivate', methods=['PATCH'])
-@jwt_required()
-@role_required('admin')
-def toggle_deactivate(user_id):
-    user = User.query.get(user_id)
-    if not user or user.role == 'admin':
-        return jsonify({'message': 'User not found'}), 404
-    user.is_active = not user.is_active   # toggle on/off
-    db.session.commit()
-    return jsonify({'message': 'active' if user.is_active else 'deactivated'}), 200
 
 
 @admin_bp.route('/users/<int:user_id>/blacklist', methods=['PATCH'])
@@ -253,9 +229,30 @@ def toggle_blacklist(user_id):
     return jsonify({'message': 'blacklisted' if user.is_blacklisted else 'un-blacklisted'}), 200
 
 
-# ==========================================================================
-# ALL BOOKINGS
-# ==========================================================================
+
+@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@role_required('admin')
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if not user or user.role == 'admin':
+        return jsonify({'message': 'User not found'}), 404
+
+    if user.role == 'staff':
+        for trek in Trek.query.filter_by(assigned_staff_id=user.id).all():
+            trek.assigned_staff_id = None
+            if trek.status == 'Open':        
+                trek.status = 'Approved'
+
+    db.session.delete(user)                  
+    db.session.commit()
+    cache_service.clear_all_trek_caches()
+    return jsonify({'message': 'User deleted'}), 200
+
+
+
+# All Bookings---------------------------------------------
+
 @admin_bp.route('/bookings', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -275,9 +272,9 @@ def list_bookings():
     return jsonify({'bookings': result}), 200
 
 
-# ==========================================================================
-# SEARCH  ?type=user|staff|trek&q=...
-# ==========================================================================
+
+#search 
+
 @admin_bp.route('/search', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -300,14 +297,12 @@ def search():
     return jsonify({'results': result}), 200
 
 
-# ==========================================================================
-# ANALYTICS  (optional feature - data shaped for Chart.js)
-# ==========================================================================
+# analytics and summmary reports
+
 @admin_bp.route('/reports/analytics', methods=['GET'])
 @jwt_required()
 @role_required('admin')
 def analytics():
-    # Popular treks = number of bookings per trek
     treks = Trek.query.filter_by(is_deleted=False).all()
     labels = []
     counts = []
@@ -325,9 +320,9 @@ def analytics():
     }), 200
 
 
-# ==========================================================================
-# SYSTEM SUMMARY  (a full snapshot of the whole system for the Report page)
-# ==========================================================================
+
+# Summary   
+
 @admin_bp.route('/reports/summary', methods=['GET'])
 @jwt_required()
 @role_required('admin')
@@ -335,7 +330,7 @@ def summary():
     treks = Trek.query.filter_by(is_deleted=False).all()
     bookings = Booking.query.all()
 
-    # count treks grouped by their lifecycle status
+    # count treks grouped by status
     trek_by_status = {}
     for t in treks:
         trek_by_status[t.status] = trek_by_status.get(t.status, 0) + 1
@@ -345,7 +340,7 @@ def summary():
     for b in bookings:
         booking_by_status[b.status] = booking_by_status.get(b.status, 0) + 1
 
-    # estimated revenue from active + completed bookings
+    # calculate revenue - active + completed bookings
     price_by_trek = {t.id: t.price for t in treks}
     revenue = sum(
         price_by_trek.get(b.trek_id, 0)
@@ -355,7 +350,15 @@ def summary():
     trekkers = User.query.filter_by(role='trekker', is_deleted=False).all()
     staff = User.query.filter_by(role='staff', is_deleted=False).all()
 
-    # top 5 popular treks by total bookings
+    # new trekker signups of month
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    new_signups = User.query.filter(
+        User.role == 'trekker',
+        User.created_at >= month_start,
+    ).count()
+
+    # top 5 popular treks
     popularity = sorted(
         ((t.name, Booking.query.filter_by(trek_id=t.id).count()) for t in treks),
         key=lambda x: x[1], reverse=True,
@@ -373,27 +376,70 @@ def summary():
         },
         'users': {
             'trekkers': len(trekkers),
-            'active_trekkers': sum(1 for u in trekkers if u.is_active and not u.is_blacklisted),
+            'active_trekkers': sum(1 for u in trekkers if not u.is_blacklisted),
             'blacklisted': sum(1 for u in trekkers if u.is_blacklisted),
+            'new_signups': new_signups,
         },
         'staff': {
             'total': len(staff),
-            'active': sum(1 for u in staff if u.is_active and not u.is_blacklisted),
+            'active': sum(1 for u in staff if not u.is_blacklisted),
         },
         'revenue_estimate': round(revenue, 2),
         'top_treks': [{'name': n, 'bookings': c} for n, c in popularity],
     }), 200
 
 
-# ==========================================================================
-# BACKGROUND JOB TRIGGERS  (run the scheduled email jobs on demand so they
-# can be tested manually — the results land in Mailhog: http://localhost:8025)
-# ==========================================================================
+
+# export all users- summary + details of staff & trekkers - CSV
+
+@admin_bp.route('/export/users', methods=['GET'])
+@jwt_required()
+@role_required('admin')
+def export_users():
+    import csv
+    import io
+    from flask import Response
+
+    staff = User.query.filter_by(role='staff', is_deleted=False).all()
+    trekkers = User.query.filter_by(role='trekker', is_deleted=False).all()
+    people = staff + trekkers
+    blacklisted = sum(1 for u in people if u.is_blacklisted)
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+
+    
+    w.writerow(['SUMMARY'])
+    w.writerow(['Total staff', len(staff)])
+    w.writerow(['Total trekkers', len(trekkers)])
+    w.writerow(['Total accounts', len(people)])
+    w.writerow(['Blacklisted', blacklisted])
+    w.writerow([])
+
+    # ---- details 
+    w.writerow(['id', 'role', 'full_name', 'email', 'phone', 'status',
+                'total_bookings', 'created_at'])
+    for u in people:
+        status = 'Blacklisted' if u.is_blacklisted else 'Active'
+        total_bookings = Booking.query.filter_by(user_id=u.id).count()
+        created = u.created_at.strftime('%Y-%m-%d') if u.created_at else ''
+        w.writerow([u.id, u.role, u.full_name, u.email, u.phone or '',
+                    status, total_bookings, created])
+
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=guidesync_users.csv'},
+    )
+
+
+
+
 @admin_bp.route('/jobs/daily-reminders', methods=['POST'])
 @jwt_required()
 @role_required('admin')
 def trigger_daily_reminders():
-    from tasks import send_daily_reminders     # local import avoids circular import
+    from tasks import send_daily_reminders     
     task = send_daily_reminders.delay()
     return jsonify({'task_id': task.id}), 202
 

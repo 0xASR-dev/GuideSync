@@ -13,7 +13,7 @@ export default {
     label: { type: String, required: true },
     value: { type: [Number, String], default: 0 },
     hint: { type: String, default: '' },
-    variant: { type: String, default: 'green' }, // green|blue|amber|slate|violet|rose|teal
+    variant: { type: String, default: 'green' }, 
   },
   computed: {
     variantClass() {

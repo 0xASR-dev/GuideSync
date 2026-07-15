@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PageHeader title="Manage Users" subtitle="Trekker accounts — deactivate or blacklist access" />
+    <PageHeader title="Manage Users" subtitle="Trekker accounts — blacklist or delete" />
 
     <div v-if="message" class="alert alert-info py-2">{{ message }}</div>
 
@@ -27,11 +27,11 @@
             <td>{{ u.phone }}</td>
             <td><StatusPill :status="statusOf(u)" /></td>
             <td class="text-end text-nowrap">
-              <button class="btn btn-sm btn-outline-warning" @click="deactivate(u.id)">
-                {{ u.is_active ? 'Deactivate' : 'Activate' }}
-              </button>
-              <button class="btn btn-sm btn-outline-danger ms-1" @click="blacklist(u.id)">
+              <button class="btn btn-sm btn-outline-danger" @click="blacklist(u.id)">
                 {{ u.is_blacklisted ? 'Un-blacklist' : 'Blacklist' }}
+              </button>
+              <button class="btn btn-sm btn-danger ms-1" @click="remove(u.id, u.full_name)">
+                Delete
               </button>
             </td>
           </tr>
@@ -56,7 +56,7 @@ export default {
   },
   computed: {
     activeCount() {
-      return this.users.filter((u) => u.is_active && !u.is_blacklisted).length
+      return this.users.filter((u) => !u.is_blacklisted).length
     },
   },
   async mounted() {
@@ -64,20 +64,20 @@ export default {
   },
   methods: {
     statusOf(u) {
-      if (u.is_blacklisted) return 'Blacklisted'
-      if (!u.is_active) return 'Deactivated'
-      return 'Active'
+      return u.is_blacklisted ? 'Blacklisted' : 'Active'
     },
     async load() {
       const res = await api.get('/admin/users')
       this.users = res.data.users
     },
-    async deactivate(id) {
-      await api.patch(`/admin/users/${id}/deactivate`)
-      await this.load()
-    },
     async blacklist(id) {
       await api.patch(`/admin/users/${id}/blacklist`)
+      await this.load()
+    },
+    async remove(id, name) {
+      if (!confirm(`Permanently delete "${name}"? This also removes their booking history and cannot be undone.`)) return
+      await api.delete(`/admin/users/${id}`)
+      this.message = 'User deleted'
       await this.load()
     },
   },

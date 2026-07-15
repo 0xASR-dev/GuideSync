@@ -51,12 +51,25 @@ const router = createRouter({
   routes,
 })
 
-// Route guard: check login + role before entering a page.
+// Where each role lands when logged in.
+export function roleHome(role) {
+  if (role === 'admin') return '/admin'
+  if (role === 'staff') return '/staff'
+  return '/trekker'
+}
+
 router.beforeEach((to) => {
   const auth = useAuthStore()
+
+  // A logged-in user should never see the public landing / login / register
+  // pages — send them to their own dashboard instead.
+  if (auth.isLoggedIn && ['/', '/login', '/register'].includes(to.path)) {
+    return roleHome(auth.role)
+  }
+
   if (to.meta.public) return true
   if (!auth.isLoggedIn) return '/login'
-  if (to.meta.role && auth.role !== to.meta.role) return '/'
+  if (to.meta.role && auth.role !== to.meta.role) return roleHome(auth.role)
   return true
 })
 

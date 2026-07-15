@@ -8,11 +8,10 @@ from routes.trekker import _user_bookings
 
 tstaff_bp = Blueprint('tstaff', __name__)
 
-# Allowed trek statuses a staff member can set
 STAFF_STATUSES = ['Open', 'Closed', 'Started', 'Completed']
 
 
-# Small helper: get a trek and make sure it belongs to the logged-in staff.
+
 def _get_own_trek(trek_id):
     staff_id = int(get_jwt_identity())
     trek = Trek.query.get(trek_id)
@@ -23,7 +22,7 @@ def _get_own_trek(trek_id):
     return trek, None
 
 
-# ---- Dashboard: my treks + how many booked people in each -----------------
+# Dashboard -----------------
 @tstaff_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @role_required('staff')
@@ -44,7 +43,7 @@ def dashboard():
     return jsonify({'treks': result}), 200
 
 
-# ---- List my assigned treks ----------------------------------------------
+# List treks ----------------------------------------------
 @tstaff_bp.route('/treks', methods=['GET'])
 @jwt_required()
 @role_required('staff')
@@ -62,7 +61,7 @@ def my_treks():
     return jsonify({'treks': result}), 200
 
 
-# ---- Update available slots ----------------------------------------------
+# Update  slots ----------------------------------------------
 @tstaff_bp.route('/treks/<int:trek_id>/slots', methods=['PATCH'])
 @jwt_required()
 @role_required('staff')
@@ -74,7 +73,7 @@ def update_slots(trek_id):
     data = request.get_json() or {}
     new_available = int(data.get('available_slots', trek.available_slots))
 
-    # keep the invariant 0 <= available <= total
+    
     if new_available < 0 or new_available > trek.total_slots:
         return jsonify({'message': 'available_slots must be between 0 and total_slots'}), 400
 
@@ -84,7 +83,7 @@ def update_slots(trek_id):
     return jsonify({'message': 'Slots updated'}), 200
 
 
-# ---- Change trek status (Open / Closed / Started / Completed) -------------
+# change trek status -------------
 @tstaff_bp.route('/treks/<int:trek_id>/status', methods=['PATCH'])
 @jwt_required()
 @role_required('staff')
@@ -100,7 +99,7 @@ def update_status(trek_id):
 
     trek.status = new_status
 
-    # When a trek is completed, all its active bookings are completed too.
+    
     affected_users = []
     if new_status == 'Completed':
         active = Booking.query.filter_by(trek_id=trek.id, status='Booked').all()
@@ -115,7 +114,7 @@ def update_status(trek_id):
     return jsonify({'message': f'Trek marked {new_status}'}), 200
 
 
-# ---- Participant list for one trek ---------------------------------------
+# Participant list trek---------------------------------------
 @tstaff_bp.route('/treks/<int:trek_id>/participants', methods=['GET'])
 @jwt_required()
 @role_required('staff')

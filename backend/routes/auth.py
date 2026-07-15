@@ -7,9 +7,8 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 auth_bp = Blueprint('auth', __name__)
 
 
-# ---- Trekker self-registration -------------------------------------------
-# Only trekkers can register themselves. Admin is seeded, staff is created
-# by the admin, so this route always makes a 'trekker'.
+# Trekker-registration -------------------------------------------
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json() or {}
@@ -37,21 +36,19 @@ def register():
     return jsonify({'message': 'Registered successfully'}), 201
 
 
-# ---- Login (any role) -----------------------------------------------------
+#login ---------------------------------------------------------------
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
     user = User.query.filter_by(email=data.get('email')).first()
 
-    # wrong email or wrong password
+
     if not user or not check_password_hash(user.password, data.get('password', '')):
         return jsonify({'message': 'Invalid credentials'}), 401
 
-    # blocked users cannot log in
+    
     if user.is_blacklisted:
         return jsonify({'message': 'Your account is blacklisted'}), 403
-    if not user.is_active:
-        return jsonify({'message': 'Your account is deactivated'}), 403
 
     access_token = create_access_token(
         identity=str(user.id),
@@ -66,14 +63,14 @@ def login():
 
 
 # ---- Logout ---------------------------------------------------------------
-# JWT is stateless, so we just tell the frontend to delete the token.
+
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
     return jsonify({'message': 'Logged out'}), 200
 
 
-# ---- Current user profile -------------------------------------------------
+# Current user  -------------------------------------------------
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def me():

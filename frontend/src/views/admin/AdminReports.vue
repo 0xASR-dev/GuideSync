@@ -1,6 +1,10 @@
 <template>
   <div>
-    <PageHeader title="System Report" subtitle="Full snapshot of the platform, analytics and background jobs" />
+    <PageHeader title="System Report" subtitle="Full snapshot of the platform, analytics and background jobs">
+      <button class="btn btn-outline-success" :disabled="exporting" @click="exportUsers">
+        {{ exporting ? 'Exporting…' : 'Export Users (CSV)' }}
+      </button>
+    </PageHeader>
 
     <!-- Top-level summary tiles -->
     <div class="row g-3 mb-4">
@@ -48,6 +52,7 @@
         <div class="card h-100"><div class="card-body">
           <h5 class="section-title">People</h5>
           <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between px-0">New signups (this month) <span class="fw-semibold">{{ summary.users.new_signups }}</span></li>
             <li class="list-group-item d-flex justify-content-between px-0">Active trekkers <span class="fw-semibold">{{ summary.users.active_trekkers }}</span></li>
             <li class="list-group-item d-flex justify-content-between px-0">Blacklisted <span class="fw-semibold">{{ summary.users.blacklisted }}</span></li>
             <li class="list-group-item d-flex justify-content-between px-0">Total staff <span class="fw-semibold">{{ summary.staff.total }}</span></li>
@@ -117,7 +122,7 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale,
 const emptySummary = () => ({
   treks: { total: 0, by_status: {}, open: 0 },
   bookings: { total: 0, by_status: {} },
-  users: { trekkers: 0, active_trekkers: 0, blacklisted: 0 },
+  users: { trekkers: 0, active_trekkers: 0, blacklisted: 0, new_signups: 0 },
   staff: { total: 0, active: 0 },
   revenue_estimate: 0,
   top_treks: [],
@@ -134,6 +139,7 @@ export default {
       jobRunning: false,
       jobMessage: '',
       jobError: false,
+      exporting: false,
     }
   },
   computed: {
@@ -171,6 +177,21 @@ export default {
   methods: {
     isEmpty(obj) {
       return !obj || Object.keys(obj).length === 0
+    },
+    // Download the allusers data
+    async exportUsers() {
+      this.exporting = true
+      try {
+        const file = await api.get('/admin/export/users', { responseType: 'blob' })
+        const url = window.URL.createObjectURL(new Blob([file.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'guidesync_users.csv'
+        link.click()
+        window.URL.revokeObjectURL(url)
+      } finally {
+        this.exporting = false
+      }
     },
     async runJob(kind) {
       this.jobRunning = true

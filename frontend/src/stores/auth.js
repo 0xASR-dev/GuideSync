@@ -1,8 +1,7 @@
 import { defineStore } from 'pinia'
 import api from '../services/api'
 
-// Holds the logged-in user's token / role / name.
-// We also copy these into localStorage so a page refresh keeps you logged in.
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') || '',

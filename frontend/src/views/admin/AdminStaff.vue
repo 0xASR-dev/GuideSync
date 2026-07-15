@@ -62,11 +62,11 @@
             <td class="text-muted">{{ s.bio }}</td>
             <td><StatusPill :status="statusOf(s)" /></td>
             <td class="text-end text-nowrap">
-              <button class="btn btn-sm btn-outline-warning" @click="deactivate(s.id)">
-                {{ s.is_active ? 'Deactivate' : 'Activate' }}
-              </button>
-              <button class="btn btn-sm btn-outline-danger ms-1" @click="blacklist(s.id)">
+              <button class="btn btn-sm btn-outline-danger" @click="blacklist(s.id)">
                 {{ s.is_blacklisted ? 'Un-blacklist' : 'Blacklist' }}
+              </button>
+              <button class="btn btn-sm btn-danger ms-1" @click="remove(s.id, s.full_name)">
+                Delete
               </button>
             </td>
           </tr>
@@ -95,7 +95,7 @@ export default {
   },
   computed: {
     activeCount() {
-      return this.staff.filter((s) => s.is_active && !s.is_blacklisted).length
+      return this.staff.filter((s) => !s.is_blacklisted).length
     },
   },
   async mounted() {
@@ -103,9 +103,7 @@ export default {
   },
   methods: {
     statusOf(s) {
-      if (s.is_blacklisted) return 'Blacklisted'
-      if (!s.is_active) return 'Deactivated'
-      return 'Active'
+      return s.is_blacklisted ? 'Blacklisted' : 'Active'
     },
     async load() {
       const res = await api.get('/admin/staff')
@@ -121,15 +119,16 @@ export default {
         this.message = err.response?.data?.message || 'Error'
       }
     },
-    // Staff share the same account toggle endpoints as users (any non-admin id).
-    async deactivate(id) {
-      await api.patch(`/admin/users/${id}/deactivate`)
-      this.message = 'Staff account updated'
-      await this.load()
-    },
+    // Staff share the same account endpoints as users (any non-admin id).
     async blacklist(id) {
       await api.patch(`/admin/users/${id}/blacklist`)
       this.message = 'Staff account updated'
+      await this.load()
+    },
+    async remove(id, name) {
+      if (!confirm(`Permanently delete staff "${name}"? Their assigned treks will be unassigned. This cannot be undone.`)) return
+      await api.delete(`/admin/users/${id}`)
+      this.message = 'Staff deleted'
       await this.load()
     },
   },

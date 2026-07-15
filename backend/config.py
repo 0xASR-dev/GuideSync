@@ -7,9 +7,7 @@ def _get_cache_config():
 
     if cache_type == 'RedisCache':
         try:
-            import redis  # noqa: F401
-            # Ping the server: fall back to an in-memory cache if it's down,
-            # so @cache.cached()/@cache.memoize() decorators can't crash routes.
+            import redis 
             client = redis.Redis.from_url(redis_url, socket_connect_timeout=1)
             client.ping()
         except Exception:
@@ -20,21 +18,19 @@ def _get_cache_config():
 
 
 class Config:
-    # Basic Flask + JWT secrets (fine for an academic/dev project)
     SECRET_KEY = 'This_is_the_secret_key_for_development'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = 'jwt-secret-key-change-in-production'
 
-    # Use Redis when available; otherwise fall back to an in-memory cache.
+
     CACHE_TYPE, CACHE_REDIS_URL = _get_cache_config()
     CACHE_DEFAULT_TIMEOUT = 300
 
-    # Where the CSV export files are written by the Celery task
+    #for the CSV export files by the Celery task
     EXPORT_FOLDER = os.path.join(os.path.dirname(__file__), 'exports')
 
-    # Mailhog SMTP (dev mail catcher). Read the inbox at http://localhost:8025
-    # (that 8025 port is the web UI only -- SMTP delivery itself is on 1025)
+    # Mailhog SMTP  at http://localhost:8025
     MAIL_HOST = os.getenv('MAIL_HOST', 'localhost')
     MAIL_PORT = int(os.getenv('MAIL_PORT', '1025'))
     MAIL_SENDER = os.getenv('MAIL_SENDER', '22f3002042@ds.study.iitm.ac.in')

@@ -8,17 +8,17 @@ from flask_cors import CORS
 def create_app():
     app = Flask(__name__)
     app.config.from_object(config)
-    CORS(app)   # allow the Vue frontend to call the API
+    CORS(app)   
 
-    # connect the extensions to the app
+    
     db.init_app(app)
     jwt.init_app(app)
     cache.init_app(app)
 
-    # create tables + seed the single admin
     with app.app_context():
         db.create_all()
         create_admin()
+
 
     # register all route blueprints
     from routes.auth import auth_bp
@@ -39,7 +39,7 @@ app = create_app()
 
 @app.route('/')
 def home():
-    return jsonify({'message': 'Welcome to the GuideSync Trekking Management API'}), 200
+    return jsonify({'message': 'Welcome to the GuideSync Trekking Management System'}), 200
 
 
 @app.route('/health')

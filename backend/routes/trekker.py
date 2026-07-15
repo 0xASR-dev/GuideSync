@@ -9,7 +9,6 @@ from routes import cache_service
 trekker_bp = Blueprint('trekker', __name__)
 
 
-# Turn a Trek row into a plain dict (used in several places).
 def _trek_dict(t):
     return {
         'id': t.id,
@@ -27,10 +26,7 @@ def _trek_dict(t):
     }
 
 
-# Per-user booking history.
-# @cache.memoize() keys the cache on the argument (user_id), so each trekker
-# gets their OWN cached entry -> no data bleeding between profiles.
-# Invalidated with cache.delete_memoized(_user_bookings, user_id) on writes.
+
 @cache.memoize(timeout=60)
 def _user_bookings(user_id):
     bookings = Booking.query.filter_by(user_id=user_id).order_by(Booking.id.desc()).all()
@@ -48,7 +44,7 @@ def _user_bookings(user_id):
     return result
 
 
-# ---- Dashboard: open treks + my bookings ---------------------------------
+#Dashboard- open treks + my bookings 
 @trekker_bp.route('/dashboard', methods=['GET'])
 @jwt_required()
 @role_required('trekker')
@@ -62,8 +58,8 @@ def dashboard():
     }), 200
 
 
-# ---- Browse / filter open treks ------------------------------------------
-# If no filters are used we serve the whole list from Redis cache.
+# list open treks ------------------------------------------
+
 @trekker_bp.route('/treks', methods=['GET'])
 @jwt_required()
 @role_required('trekker')
@@ -74,7 +70,7 @@ def list_treks():
 
     no_filters = not (difficulty or location or duration)
 
-    # cached path (only when there are no filters)
+    
     if no_filters:
         cached = cache_service.get(cache_service.KEY_OPEN_TREKS)
         if cached:
@@ -96,7 +92,7 @@ def list_treks():
     return jsonify({'treks': treks}), 200
 
 
-# ---- Book a trek (core business rules live here) --------------------------
+#  Booking a trek  --------------------------
 @trekker_bp.route('/bookings', methods=['POST'])
 @jwt_required()
 @role_required('trekker')
@@ -104,8 +100,8 @@ def book_trek():
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
 
-    # a user blocked after login should still be stopped
-    if not user or not user.is_active or user.is_blacklisted:
+    
+    if not user or user.is_blacklisted:
         return jsonify({'message': 'Your account cannot make bookings'}), 403
 
     data = request.get_json() or {}
@@ -113,15 +109,15 @@ def book_trek():
     if not trek or trek.is_deleted:
         return jsonify({'message': 'Trek not found'}), 404
 
-    # rule 2: only Open treks can be booked
+    
     if trek.status != 'Open':
         return jsonify({'message': 'This trek is not open for booking'}), 400
 
-    # rule 1: no overbooking
+    
     if trek.available_slots <= 0:
         return jsonify({'message': 'No slots available'}), 409
 
-    # rule 3: no duplicate active booking
+    
     existing = Booking.query.filter_by(
         user_id=user_id, trek_id=trek.id, status='Booked'
     ).first()
@@ -130,7 +126,7 @@ def book_trek():
 
     booking = Booking(user_id=user_id, trek_id=trek.id, status='Booked')
     trek.available_slots -= 1
-    if trek.available_slots == 0:      # auto-close when full
+    if trek.available_slots == 0:      
         trek.status = 'Closed'
 
     db.session.add(booking)
@@ -141,7 +137,7 @@ def book_trek():
     return jsonify({'message': 'Trek booked successfully', 'booking_id': booking.id}), 201
 
 
-# ---- Cancel a booking (slot is returned) ---------------------------------
+# Cancel a booking 
 @trekker_bp.route('/bookings/<int:booking_id>/cancel', methods=['PATCH'])
 @jwt_required()
 @role_required('trekker')
@@ -159,7 +155,7 @@ def cancel_booking(booking_id):
     trek = Trek.query.get(booking.trek_id)
     if trek:
         trek.available_slots += 1
-        # if it was auto-closed and now has space, re-open it
+        
         if trek.status == 'Closed' and trek.available_slots > 0:
             trek.status = 'Open'
 
@@ -169,7 +165,7 @@ def cancel_booking(booking_id):
     return jsonify({'message': 'Booking cancelled'}), 200
 
 
-# ---- Booking history ------------------------------------------------------
+# Booking history ------------------------------------------------------
 @trekker_bp.route('/bookings', methods=['GET'])
 @jwt_required()
 @role_required('trekker')
@@ -178,7 +174,7 @@ def my_bookings():
     return jsonify({'bookings': _user_bookings(user_id)}), 200
 
 
-# ---- Edit own profile -----------------------------------------------------
+#  Edit  profile -----------------------------------------------------
 @trekker_bp.route('/profile', methods=['PUT'])
 @jwt_required()
 @role_required('trekker')
@@ -195,18 +191,14 @@ def edit_profile():
     return jsonify({'message': 'Profile updated'}), 200
 
 
-# ==========================================================================
-# CSV EXPORT (async via Celery)
-# POST /export/bookings -> returns task_id
-# GET  /export/<task_id> -> poll status, get download link when ready
-# GET  /export/<task_id>/download -> download the CSV file
-# ==========================================================================
+# CSV EXPORT------------
+
 @trekker_bp.route('/export/bookings', methods=['POST'])
 @jwt_required()
 @role_required('trekker')
 def start_export():
     user_id = int(get_jwt_identity())
-    # imported here (not at top) to avoid a circular import with celery_app
+    
     from tasks import export_bookings_csv
     task = export_bookings_csv.delay(user_id)
     return jsonify({'task_id': task.id}), 202
