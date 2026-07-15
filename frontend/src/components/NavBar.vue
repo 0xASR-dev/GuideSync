@@ -1,42 +1,56 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+  <nav class="navbar navbar-expand-lg navbar-dark gs-navbar">
     <div class="container">
-      <router-link class="navbar-brand fw-bold" to="/">🏔️ GuideSync</router-link>
+      <router-link class="navbar-brand" to="/">GuideSync</router-link>
 
-      <div class="navbar-nav ms-auto">
-        <!-- Not logged in -->
-        <template v-if="!auth.isLoggedIn">
-          <router-link class="nav-link" to="/login">Login</router-link>
-          <router-link class="nav-link" to="/register">Register</router-link>
-        </template>
+      <button
+        class="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#gsNav"
+        aria-controls="gsNav"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-        <!-- Admin links -->
-        <template v-if="auth.role === 'admin'">
-          <router-link class="nav-link" to="/admin">Dashboard</router-link>
-          <router-link class="nav-link" to="/admin/treks">Treks</router-link>
-          <router-link class="nav-link" to="/admin/staff">Staff</router-link>
-          <router-link class="nav-link" to="/admin/users">Users</router-link>
-          <router-link class="nav-link" to="/admin/bookings">Bookings</router-link>
-          <router-link class="nav-link" to="/admin/reports">Reports</router-link>
-        </template>
+      <div id="gsNav" class="collapse navbar-collapse">
+        <div class="navbar-nav ms-auto align-items-lg-center">
+          <!-- Not logged in -->
+          <template v-if="!auth.isLoggedIn">
+            <router-link class="nav-link" to="/login">Login</router-link>
+            <router-link class="nav-link" to="/register">Register</router-link>
+          </template>
 
-        <!-- Staff links -->
-        <template v-if="auth.role === 'staff'">
-          <router-link class="nav-link" to="/staff">My Treks</router-link>
-        </template>
+          <!-- Admin links -->
+          <template v-if="auth.role === 'admin'">
+            <router-link class="nav-link" to="/admin">Dashboard</router-link>
+            <router-link class="nav-link" to="/admin/treks">Treks</router-link>
+            <router-link class="nav-link" to="/admin/staff">Staff</router-link>
+            <router-link class="nav-link" to="/admin/users">Users</router-link>
+            <router-link class="nav-link" to="/admin/bookings">Bookings</router-link>
+            <router-link class="nav-link" to="/admin/reports">Reports</router-link>
+          </template>
 
-        <!-- Trekker links -->
-        <template v-if="auth.role === 'trekker'">
-          <router-link class="nav-link" to="/trekker">Dashboard</router-link>
-          <router-link class="nav-link" to="/trekker/treks">Browse Treks</router-link>
-          <router-link class="nav-link" to="/trekker/bookings">My Bookings</router-link>
-          <router-link class="nav-link" to="/trekker/profile">Profile</router-link>
-        </template>
+          <!-- Staff links -->
+          <template v-if="auth.role === 'staff'">
+            <router-link class="nav-link" to="/staff">My Treks</router-link>
+          </template>
 
-        <!-- Logout -->
-        <a v-if="auth.isLoggedIn" class="nav-link" href="#" @click.prevent="logout">
-          Logout ({{ auth.fullName }})
-        </a>
+          <!-- Trekker links -->
+          <template v-if="auth.role === 'trekker'">
+            <router-link class="nav-link" to="/trekker">Dashboard</router-link>
+            <router-link class="nav-link" to="/trekker/treks">Browse Treks</router-link>
+            <router-link class="nav-link" to="/trekker/bookings">My Bookings</router-link>
+            <router-link class="nav-link" to="/trekker/profile">Profile</router-link>
+          </template>
+
+          <!-- Logout -->
+          <a v-if="auth.isLoggedIn" class="nav-link nav-logout" href="#" @click.prevent="logout">
+            Logout ({{ auth.fullName }})
+          </a>
+        </div>
       </div>
     </div>
   </nav>

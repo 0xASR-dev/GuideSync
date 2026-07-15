@@ -1,11 +1,11 @@
 <template>
   <div class="row justify-content-center">
-    <div class="col-md-6">
-      <h2 class="mb-4">My Profile</h2>
-      <div v-if="message" class="alert alert-info">{{ message }}</div>
+    <div class="col-md-7 col-lg-6">
+      <PageHeader title="My Profile" subtitle="Update your personal details" />
+      <div v-if="message" class="alert alert-info py-2">{{ message }}</div>
 
       <div class="card">
-        <div class="card-body">
+        <div class="card-body p-4">
           <form @submit.prevent="save">
             <div class="mb-3">
               <label class="form-label">Email (cannot change)</label>
@@ -30,9 +30,11 @@
 <script>
 import api from '../../services/api'
 import { useAuthStore } from '../../stores/auth'
+import PageHeader from '../../components/PageHeader.vue'
 
 export default {
   name: 'TrekkerProfile',
+  components: { PageHeader },
   data() {
     return { email: '', fullName: '', phone: '', message: '' }
   },

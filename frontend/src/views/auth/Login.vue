@@ -1,28 +1,27 @@
 <template>
-  <div class="row justify-content-center">
-    <div class="col-md-5">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h3 class="card-title mb-3">Login</h3>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <div class="card-body p-4 p-md-5">
+        <div class="auth-brand">GuideSync</div>
+        <p class="text-center text-muted mb-4">Sign in to your account</p>
 
-          <div v-if="error" class="alert alert-danger">{{ error }}</div>
+        <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
 
-          <form @submit.prevent="submit">
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input v-model="email" type="email" class="form-control" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Password</label>
-              <input v-model="password" type="password" class="form-control" required />
-            </div>
-            <button class="btn btn-success w-100" type="submit">Login</button>
-          </form>
+        <form @submit.prevent="submit">
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input v-model="email" type="email" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input v-model="password" type="password" class="form-control" required />
+          </div>
+          <button class="btn btn-success w-100 py-2" type="submit">Login</button>
+        </form>
 
-          <p class="mt-3 mb-0 text-muted small">
-            No account? <router-link to="/register">Register as trekker</router-link>
-          </p>
-        </div>
+        <p class="mt-4 mb-0 text-center text-muted small">
+          No account? <router-link to="/register" class="fw-semibold">Register as trekker</router-link>
+        </p>
       </div>
     </div>
   </div>

@@ -1,33 +1,36 @@
 <template>
-  <div class="row justify-content-center">
-    <div class="col-md-5">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h3 class="card-title mb-3">Register as Trekker</h3>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <div class="card-body p-4 p-md-5">
+        <div class="auth-brand">GuideSync</div>
+        <p class="text-center text-muted mb-4">Create your trekker account</p>
 
-          <div v-if="error" class="alert alert-danger">{{ error }}</div>
-          <div v-if="success" class="alert alert-success">{{ success }}</div>
+        <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
+        <div v-if="success" class="alert alert-success py-2">{{ success }}</div>
 
-          <form @submit.prevent="submit">
-            <div class="mb-3">
-              <label class="form-label">Full Name</label>
-              <input v-model="fullName" class="form-control" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input v-model="email" type="email" class="form-control" required />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Phone</label>
-              <input v-model="phone" class="form-control" />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Password</label>
-              <input v-model="password" type="password" class="form-control" required />
-            </div>
-            <button class="btn btn-success w-100" type="submit">Register</button>
-          </form>
-        </div>
+        <form @submit.prevent="submit">
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input v-model="fullName" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input v-model="email" type="email" class="form-control" required />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input v-model="phone" type="tel" class="form-control" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input v-model="password" type="password" class="form-control" minlength="4" required />
+          </div>
+          <button class="btn btn-success w-100 py-2" type="submit">Register</button>
+        </form>
+
+        <p class="mt-4 mb-0 text-center text-muted small">
+          Already have an account? <router-link to="/login" class="fw-semibold">Login</router-link>
+        </p>
       </div>
     </div>
   </div>

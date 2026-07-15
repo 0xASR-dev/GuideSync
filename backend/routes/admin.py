@@ -323,3 +323,97 @@ def analytics():
             'Completed': Booking.query.filter_by(status='Completed').count(),
         },
     }), 200
+
+
+# ==========================================================================
+# SYSTEM SUMMARY  (a full snapshot of the whole system for the Report page)
+# ==========================================================================
+@admin_bp.route('/reports/summary', methods=['GET'])
+@jwt_required()
+@role_required('admin')
+def summary():
+    treks = Trek.query.filter_by(is_deleted=False).all()
+    bookings = Booking.query.all()
+
+    # count treks grouped by their lifecycle status
+    trek_by_status = {}
+    for t in treks:
+        trek_by_status[t.status] = trek_by_status.get(t.status, 0) + 1
+
+    # count bookings grouped by status
+    booking_by_status = {}
+    for b in bookings:
+        booking_by_status[b.status] = booking_by_status.get(b.status, 0) + 1
+
+    # estimated revenue from active + completed bookings
+    price_by_trek = {t.id: t.price for t in treks}
+    revenue = sum(
+        price_by_trek.get(b.trek_id, 0)
+        for b in bookings if b.status in ('Booked', 'Completed')
+    )
+
+    trekkers = User.query.filter_by(role='trekker', is_deleted=False).all()
+    staff = User.query.filter_by(role='staff', is_deleted=False).all()
+
+    # top 5 popular treks by total bookings
+    popularity = sorted(
+        ((t.name, Booking.query.filter_by(trek_id=t.id).count()) for t in treks),
+        key=lambda x: x[1], reverse=True,
+    )[:5]
+
+    return jsonify({
+        'treks': {
+            'total': len(treks),
+            'by_status': trek_by_status,
+            'open': trek_by_status.get('Open', 0),
+        },
+        'bookings': {
+            'total': len(bookings),
+            'by_status': booking_by_status,
+        },
+        'users': {
+            'trekkers': len(trekkers),
+            'active_trekkers': sum(1 for u in trekkers if u.is_active and not u.is_blacklisted),
+            'blacklisted': sum(1 for u in trekkers if u.is_blacklisted),
+        },
+        'staff': {
+            'total': len(staff),
+            'active': sum(1 for u in staff if u.is_active and not u.is_blacklisted),
+        },
+        'revenue_estimate': round(revenue, 2),
+        'top_treks': [{'name': n, 'bookings': c} for n, c in popularity],
+    }), 200
+
+
+# ==========================================================================
+# BACKGROUND JOB TRIGGERS  (run the scheduled email jobs on demand so they
+# can be tested manually — the results land in Mailhog: http://localhost:8025)
+# ==========================================================================
+@admin_bp.route('/jobs/daily-reminders', methods=['POST'])
+@jwt_required()
+@role_required('admin')
+def trigger_daily_reminders():
+    from tasks import send_daily_reminders     # local import avoids circular import
+    task = send_daily_reminders.delay()
+    return jsonify({'task_id': task.id}), 202
+
+
+@admin_bp.route('/jobs/monthly-report', methods=['POST'])
+@jwt_required()
+@role_required('admin')
+def trigger_monthly_report():
+    from tasks import generate_monthly_report
+    task = generate_monthly_report.delay()
+    return jsonify({'task_id': task.id}), 202
+
+
+@admin_bp.route('/jobs/<task_id>', methods=['GET'])
+@jwt_required()
+@role_required('admin')
+def job_status(task_id):
+    from celery_app import celery
+    result = celery.AsyncResult(task_id)
+    payload = {'status': result.state}
+    if result.state in ('SUCCESS', 'FAILURE'):
+        payload['result'] = str(result.result)
+    return jsonify(payload), 200

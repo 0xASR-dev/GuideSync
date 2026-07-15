@@ -24,19 +24,11 @@ New trekkers can also self-register on the Register page.
 
 ## How to run
 
-**Quickest infra setup (recommended):** start Redis + Mailhog together with
-Docker Compose from the project root, then run the app on the host:
+The backend stack (API, Redis, Celery, Mailhog) runs in **WSL (Ubuntu)**; the
+frontend runs in **Windows PowerShell**. You need a few terminals for the full
+demo.
 
-```bash
-docker compose up -d      # Redis (6379) + Mailhog (SMTP 1025, UI 8025)
-docker compose down       # stop them when finished
-```
-
-If you don't use Docker, start Redis and Mailhog manually (steps 2 and 6).
-You then need **5 terminals** for the full demo (or fewer if you skip
-Celery/Redis).
-
-### 1. Backend API
+### 1. Backend API — WSL
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -46,39 +38,42 @@ python seed.py        # creates database.db + sample data (run once)
 python app.py         # starts API on http://127.0.0.1:5000
 ```
 
-### 2. Redis (needed for caching + Celery)
-Provided by `docker compose up -d`, or start a Redis server on port 6379.
-- Windows without Docker: run `redis-server` (via Memurai / WSL).
-- The app still works **without** Redis — it just falls back to in-memory cache.
+### 2. Redis (caching + Celery broker) — WSL
+```bash
+sudo service redis-server start      # or: redis-server
+redis-cli ping                       # should print PONG
+```
+The app still works **without** Redis — it just falls back to an in-memory cache.
 
-### 3. Celery worker (background jobs)
+### 3. Celery worker (background jobs) — WSL
 ```bash
 cd backend
-celery -A celery_app.celery worker --loglevel=info --pool=solo
+celery -A celery_app.celery worker --loglevel=info
 ```
-(`--pool=solo` is recommended on Windows.)
 
-### 4. Celery beat (scheduler for daily/monthly jobs)
+### 4. Celery beat (scheduler for daily/monthly jobs) — WSL
 ```bash
 cd backend
 celery -A celery_app.celery beat --loglevel=info
 ```
 
-### 5. Frontend
+### 5. Mailhog (dev email catcher) — WSL
+Download the MailHog binary once, then run it:
 ```bash
+~/MailHog                            # SMTP on :1025, web inbox on :8025
+```
+Reminders, the monthly report, and the CSV export are emailed via SMTP to
+Mailhog on port **1025**; read them at http://localhost:8025. If Mailhog isn't
+running the CSV export still writes to disk and stays downloadable. The SMTP
+target is configurable via env vars (`MAIL_HOST`, `MAIL_PORT`, `MAIL_SENDER`) —
+see [backend/config.py](backend/config.py).
+
+### 6. Frontend — Windows PowerShell
+```powershell
 cd frontend
 npm install
 npm run dev           # opens http://localhost:5173
 ```
-
-### 6. Mailhog (dev email catcher)
-Provided by `docker compose up -d` (or run the `mailhog/mailhog` image / binary
-manually). Reminders, the monthly report, and the CSV export are emailed via
-SMTP to Mailhog on port **1025**; read them at http://localhost:8025. If Mailhog
-isn't running the CSV export still writes to disk and stays downloadable.
-
-The SMTP target is configurable via env vars (`MAIL_HOST`, `MAIL_PORT`,
-`MAIL_SENDER`) — see [backend/config.py](backend/config.py).
 
 ---
 

@@ -1,47 +1,46 @@
 <template>
   <div>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="mb-0">My Bookings</h2>
-      <button class="btn btn-outline-success" :disabled="exporting" @click="exportCsv">
-        {{ exporting ? 'Preparing...' : 'Export CSV' }}
+    <PageHeader title="My Bookings" subtitle="Your full trekking history">
+      <button class="btn btn-success" :disabled="exporting" @click="exportCsv">
+        {{ exporting ? 'Preparing…' : 'Export CSV' }}
       </button>
+    </PageHeader>
+
+    <div v-if="message" class="alert alert-info py-2">{{ message }}</div>
+
+    <div class="table-wrap">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Trek</th><th>Location</th><th>Status</th><th>Booked On</th><th>Starts</th><th class="text-end">Action</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="b in bookings" :key="b.id">
+            <td class="fw-semibold">{{ b.trek_name }}</td>
+            <td>{{ b.location }}</td>
+            <td><StatusPill :status="b.status" /></td>
+            <td>{{ b.booking_date }}</td>
+            <td>{{ b.start_date }}</td>
+            <td class="text-end">
+              <button v-if="b.status === 'Booked'" class="btn btn-sm btn-outline-danger" @click="cancel(b.id)">
+                Cancel
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-if="bookings.length === 0" class="empty-state mb-0">You have no bookings yet.</p>
     </div>
-
-    <div v-if="message" class="alert alert-info">{{ message }}</div>
-
-    <table class="table table-bordered bg-white">
-      <thead class="table-light">
-        <tr><th>Trek</th><th>Location</th><th>Status</th><th>Booked On</th><th>Starts</th><th>Action</th></tr>
-      </thead>
-      <tbody>
-        <tr v-for="b in bookings" :key="b.id">
-          <td>{{ b.trek_name }}</td>
-          <td>{{ b.location }}</td>
-          <td>
-            <span class="badge"
-                  :class="{ 'bg-primary': b.status === 'Booked', 'bg-success': b.status === 'Completed', 'bg-danger': b.status === 'Cancelled' }">
-              {{ b.status }}
-            </span>
-          </td>
-          <td>{{ b.booking_date }}</td>
-          <td>{{ b.start_date }}</td>
-          <td>
-            <button v-if="b.status === 'Booked'" class="btn btn-sm btn-outline-danger" @click="cancel(b.id)">
-              Cancel
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-if="bookings.length === 0" class="text-muted">You have no bookings yet.</p>
   </div>
 </template>
 
 <script>
 import api from '../../services/api'
+import PageHeader from '../../components/PageHeader.vue'
+import StatusPill from '../../components/StatusPill.vue'
 
 export default {
   name: 'TrekkerBookings',
+  components: { PageHeader, StatusPill },
   data() {
     return { bookings: [], message: '', exporting: false }
   },
@@ -65,7 +64,7 @@ export default {
     // Async CSV export: start task -> poll status -> download file.
     async exportCsv() {
       this.exporting = true
-      this.message = 'Generating CSV in the background...'
+      this.message = 'Generating CSV in the background…'
       try {
         const start = await api.post('/trekker/export/bookings')
         const taskId = start.data.task_id
@@ -83,14 +82,13 @@ export default {
       }
       const res = await api.get(`/trekker/export/${taskId}`)
       if (res.data.status === 'SUCCESS') {
-        // download the file as a blob (needs the auth header, so use axios)
         const file = await api.get(`/trekker/export/${taskId}/download`, { responseType: 'blob' })
         const url = window.URL.createObjectURL(new Blob([file.data]))
         const link = document.createElement('a')
         link.href = url
         link.download = 'my_bookings.csv'
         link.click()
-        this.message = 'CSV downloaded!'
+        this.message = 'CSV downloaded! (also emailed to you)'
         this.exporting = false
       } else if (res.data.status === 'FAILURE') {
         this.message = 'Export failed'

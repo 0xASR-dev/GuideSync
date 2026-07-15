@@ -33,10 +33,11 @@ class Config:
     # Where the CSV export files are written by the Celery task
     EXPORT_FOLDER = os.path.join(os.path.dirname(__file__), 'exports')
 
-    # Mailhog SMTP (dev mail catcher). Web UI usually on http://localhost:8025
+    # Mailhog SMTP (dev mail catcher). Read the inbox at http://localhost:8025
+    # (that 8025 port is the web UI only -- SMTP delivery itself is on 1025)
     MAIL_HOST = os.getenv('MAIL_HOST', 'localhost')
     MAIL_PORT = int(os.getenv('MAIL_PORT', '1025'))
-    MAIL_SENDER = os.getenv('MAIL_SENDER', 'no-reply@guidesync.local')
+    MAIL_SENDER = os.getenv('MAIL_SENDER', '22f3002042@ds.study.iitm.ac.in')
 
     # Celery uses Redis as broker (DB 1) and result backend (DB 2)
     CELERY = {
